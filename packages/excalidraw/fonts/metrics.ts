@@ -1,4 +1,3 @@
-import type { ValueOf } from "../utility-types";
 import { FONT_FAMILY } from "../constants";
 
 /** For head & hhea metrics read the woff2 with https://fontdrop.info/  */

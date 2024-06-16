@@ -28,7 +28,7 @@ const DropdownMenuItem = ({
   shortcut?: string;
   hovered?: boolean;
   selected?: boolean;
-  textStyle?: React.CSSProperties,
+  textStyle?: React.CSSProperties;
   className?: string;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onSelect">) => {
   const handleClick = useHandleDropdownMenuItemClick(onClick, onSelect);

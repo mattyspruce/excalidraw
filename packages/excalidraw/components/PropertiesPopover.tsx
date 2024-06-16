@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import clsx from "clsx";
 import * as Popover from "@radix-ui/react-popover";
 
@@ -13,7 +13,7 @@ interface PropertiesPopoverProps {
   style?: object;
   onClose: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
-  onPointerLeave?: React.PointerEventHandler<HTMLDivElement> ;
+  onPointerLeave?: React.PointerEventHandler<HTMLDivElement>;
   onFocusOutside?: Popover.DismissableLayerProps["onFocusOutside"];
   onPointerDownOutside?: Popover.DismissableLayerProps["onPointerDownOutside"];
 }
