@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
+const which = require("which");
 const fetch = require("node-fetch");
-
 const wawoff = require("wawoff2");
 const { Font } = require("fonteditor-core");
 
@@ -73,10 +74,6 @@ module.exports.woff2ServerPlugin = (options = {}) => {
     }
   }
 
-  const notoEmojiBuffer = fs.readFileSync(
-    path.resolve(__dirname, "./assets/NotoEmoji-Regular.ttf"),
-  );
-
   return {
     name: "woff2ServerPlugin",
     setup(build) {
@@ -118,10 +115,18 @@ module.exports.woff2ServerPlugin = (options = {}) => {
           let font;
 
           try {
-            font = Font.create(snftBuffer, { type: "ttf" });
+            font = Font.create(snftBuffer, {
+              type: "ttf",
+              hinting: true,
+              kerning: true,
+            });
           } catch {
             // if loading as ttf fails, try to load as otf
-            font = Font.create(snftBuffer, { type: "otf" });
+            font = Font.create(snftBuffer, {
+              type: "otf",
+              hinting: true,
+              kerning: true,
+            });
           }
 
           const fontFamily = font.data.name.fontFamily;
@@ -150,8 +155,18 @@ module.exports.woff2ServerPlugin = (options = {}) => {
       );
 
       // TODO: strip away some unnecessary glyphs
-      build.onEnd(() => {
+      build.onEnd(async () => {
         if (!generateTtf) {
+          return;
+        }
+
+        const isFontToolsInstalled = await which("fonttools", {
+          nothrow: true,
+        });
+        if (!isFontToolsInstalled) {
+          console.error(
+            `Skipped TTF generation: install "fonttools" first in order to generate TTF fonts!\nhttps://github.com/fonttools/fonttools`,
+          );
           return;
         }
 
@@ -161,72 +176,69 @@ module.exports.woff2ServerPlugin = (options = {}) => {
 
         // for now we are interested in the regular families only
         for (const [family, { Regular }] of sortedFonts) {
-          // merge same previous woff2 subfamilies into one font and sort the glpyhs
-          const [head, ...tail] = Regular;
-          const mergedFont = tail
-            .reduce((acc, curr) => {
-              return acc.merge(curr);
-            }, head)
-            .sort();
+          const baseFont = Regular[0];
 
-          // merge with emoji font
-          const font = mergedFont.merge(
-            Font.create(notoEmojiBuffer, { type: "ttf" }),
+          const tempFilePaths = Regular.map((_, index) =>
+            path.resolve(outputDir, `temp_${family}_${index}.ttf`),
           );
 
-          // deduplicate glyphs by name+unicode due to merge
-          const uniqueGlyphs = new Set();
-          const glyphs = [...font.data.glyf].filter((x) => {
-            if (!x.unicode) {
-              return true;
+          for (const [index, font] of Regular.entries()) {
+            // tempFileNames
+            if (!fs.existsSync(outputDir)) {
+              fs.mkdirSync(outputDir, { recursive: true });
             }
 
-            if (!uniqueGlyphs.has(x.unicode.toString())) {
-              uniqueGlyphs.add(x.unicode.toString());
-              return true;
-            }
+            // write down the buffer
+            fs.writeFileSync(tempFilePaths[index], font.write({ type: "ttf" }));
+          }
 
-            return false;
-          });
+          const emojiFilePath = path.resolve(
+            __dirname,
+            "./assets/NotoEmoji-Regular.ttf",
+          );
 
-          // deduplucate ".notdef" glyph as it's unicodes are not cleaned after merge
-          const notDefGlyph = glyphs.find((x) => x.name === ".notdef");
-          if (notDefGlyph && Array.isArray(notDefGlyph.unicode)) {
-            notDefGlyph.unicode = notDefGlyph.unicode.filter(
-              (x) => !uniqueGlyphs.has(x.toString()),
+          const emojiBuffer = fs.readFileSync(emojiFilePath);
+          const emojiFont = Font.create(emojiBuffer, { type: "ttf" });
+
+          // hack so that:
+          // - emoji font has same metrics as the base font, otherwise pyftmerge throws due to different unitsPerEm
+          // - emoji font glyphs are adjusted based to the base font glyphs, otherwise the glyphs don't match
+          const patchedEmojiFont = Font.create({
+            ...baseFont.data,
+            glyf: [baseFont.data.glyf[0]],
+          }).merge(emojiFont, { adjustGlyf: true });
+
+          const emojiTempFilePath = path.resolve(
+            outputDir,
+            `temp_${family}_Emoji.ttf`,
+          );
+          fs.writeFileSync(
+            emojiTempFilePath,
+            patchedEmojiFont.write({ type: "ttf" }),
+          );
+
+          execSync(
+            `pyftmerge --output-file="${family}.ttf" "${tempFilePaths.join(
+              '" "',
+            )}" "${emojiTempFilePath}"`,
+            { cwd: outputDir },
+          );
+
+          // cleanup
+          fs.rmSync(emojiTempFilePath);
+          for (const path of tempFilePaths) {
+            fs.rmSync(path);
+          }
+
+          const { ascent, descent } = baseFont.data.hhea;
+          console.info(`Generated "${family}"`);
+          if (Regular.length > 1) {
+            console.info(
+              `- by merging ${Regular.length} woff2 files and 1 emoji ttf file`,
             );
           }
-
-          const duplicateGlyphssLength = font.data.glyf.length - glyphs.length;
-
-          font.set({
-            ...font.data,
-            glyf: glyphs,
-          });
-
-          const extension = "ttf";
-          const fileName = `${family}.${extension}`;
-          const { ascent, descent } = font.data.hhea;
-
-          if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-          }
-
-          // write down the buffer
-          fs.writeFileSync(
-            path.resolve(outputDir, fileName),
-            font.write({ type: extension }),
-          );
-
-          console.info(`Generated "${fileName}"`);
-          if (Regular.length > 1) {
-            console.info(`- by merging ${Regular.length} woff2 files`);
-          }
-          if (duplicateGlyphssLength) {
-            console.info(`- deduplicated ${duplicateGlyphssLength} glyphs`);
-          }
           console.info(
-            `- with metrics ${font.data.head.unitsPerEm}, ${ascent}, ${descent}`,
+            `- with metrics ${baseFont.data.head.unitsPerEm}, ${ascent}, ${descent}`,
           );
           console.info(``);
         }
