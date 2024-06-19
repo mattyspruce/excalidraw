@@ -329,29 +329,65 @@ export const getApproxMinLineHeight = (
 
 let canvas: HTMLCanvasElement | undefined;
 
-const getLineWidth = (text: string, font: FontString) => {
+/**
+ * @param forceAdvanceWidth use to force retrieve the "advance width" ~ `metrics.width`, instead of the actual boundind box width.
+ *
+ * > The advance width is the distance between the glyph's initial pen position and the next glyph's initial pen position.
+ *
+ * We need to use the advance width as that's the closest thing to the browser wrapping algo, hence using it for:
+ * - text wrapping
+ * - wysiwyg editor (+padding)
+ *
+ * Everything else should be based on the actual bounding box width.
+ *
+ * `Math.ceil` of the final width adds additional buffer which stabilizes slight wrapping incosistencies.
+ */
+const getLineWidth = (
+  text: string,
+  font: FontString,
+  forceAdvanceWidth?: true,
+) => {
   if (!canvas) {
     canvas = document.createElement("canvas");
   }
   const canvas2dContext = canvas.getContext("2d")!;
   canvas2dContext.font = font;
-  const width = canvas2dContext.measureText(text).width;
+  const metrics = canvas2dContext.measureText(text);
+
+  // retrieve the actual bounding box width if these metrics are available (as of now > 95% coverage)
+  if (
+    !forceAdvanceWidth &&
+    "actualBoundingBoxLeft" in TextMetrics.prototype &&
+    "actualBoundingBoxRight" in TextMetrics.prototype
+  ) {
+    return Math.ceil(
+      // could be negative, therefore getting the absolute value
+      Math.abs(metrics.actualBoundingBoxLeft) +
+        Math.abs(metrics.actualBoundingBoxRight),
+    );
+  }
 
   // since in test env the canvas measureText algo
   // doesn't measure text and instead just returns number of
   // characters hence we assume that each letteris 10px
   if (isTestEnv()) {
-    return width * 10;
+    return metrics.width * 10;
   }
-  return width;
+
+  return Math.ceil(metrics.width);
 };
 
-export const getTextWidth = (text: string, font: FontString) => {
+export const getTextWidth = (
+  text: string,
+  font: FontString,
+  forceAdvanceWidth?: true,
+) => {
   const lines = splitIntoLines(text);
   let width = 0;
   lines.forEach((line) => {
-    width = Math.max(width, getLineWidth(line, font));
+    width = Math.max(width, getLineWidth(line, font, forceAdvanceWidth));
   });
+
   return width;
 };
 
@@ -392,7 +428,7 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
 
   const lines: Array<string> = [];
   const originalLines = text.split("\n");
-  const spaceWidth = getLineWidth(" ", font);
+  const spaceWidth = getLineWidth(" ", font, true);
 
   let currentLine = "";
   let currentLineWidthTillNow = 0;
@@ -408,7 +444,7 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
     currentLineWidthTillNow = 0;
   };
   originalLines.forEach((originalLine) => {
-    const currentLineWidth = getTextWidth(originalLine, font);
+    const currentLineWidth = getLineWidth(originalLine, font, true);
 
     // Push the line if its <= maxWidth
     if (currentLineWidth <= maxWidth) {
@@ -422,7 +458,7 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
     let index = 0;
 
     while (index < words.length) {
-      const currentWordWidth = getLineWidth(words[index], font);
+      const currentWordWidth = getLineWidth(words[index], font, true);
 
       // This will only happen when single word takes entire width
       if (currentWordWidth === maxWidth) {
@@ -472,7 +508,11 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
         // Start appending words in a line till max width reached
         while (currentLineWidthTillNow < maxWidth && index < words.length) {
           const word = words[index];
-          currentLineWidthTillNow = getLineWidth(currentLine + word, font);
+          currentLineWidthTillNow = getLineWidth(
+            currentLine + word,
+            font,
+            true,
+          );
 
           if (currentLineWidthTillNow > maxWidth) {
             push(currentLine);
@@ -522,7 +562,7 @@ export const charWidth = (() => {
       cachedCharWidth[font] = [];
     }
     if (!cachedCharWidth[font][ascii]) {
-      const width = getLineWidth(char, font);
+      const width = getLineWidth(char, font, true);
       cachedCharWidth[font][ascii] = width;
     }
 
@@ -572,30 +612,6 @@ export const getMaxCharWidth = (font: FontString) => {
   }
   const cacheWithOutEmpty = cache.filter((val) => val !== undefined);
   return Math.max(...cacheWithOutEmpty);
-};
-
-export const getApproxCharsToFitInWidth = (font: FontString, width: number) => {
-  // Generally lower case is used so converting to lower case
-  const dummyText = DUMMY_TEXT.toLocaleLowerCase();
-  const batchLength = 6;
-  let index = 0;
-  let widthTillNow = 0;
-  let str = "";
-  while (widthTillNow <= width) {
-    const batch = dummyText.substr(index, index + batchLength);
-    str += batch;
-    widthTillNow += getLineWidth(str, font);
-    if (index === dummyText.length - 1) {
-      index = 0;
-    }
-    index = index + batchLength;
-  }
-
-  while (widthTillNow > width) {
-    str = str.substr(0, str.length - 1);
-    widthTillNow = getLineWidth(str, font);
-  }
-  return str.length;
 };
 
 export const getBoundTextElementId = (container: ExcalidrawElement | null) => {

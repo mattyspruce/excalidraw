@@ -132,12 +132,19 @@ export const textWysiwyg = ({
         updatedTextElement,
         app.scene.getNonDeletedElementsMap(),
       );
+
+      const font = getFontString({
+        fontSize: updatedTextElement.fontSize,
+        fontFamily: updatedTextElement.fontFamily,
+      });
+      // wysiwyg has to use advance width, so that our wrapping algo is in sync with the browser wrapping
+      let width = getTextWidth(updatedTextElement.text, font, true);
+      // set to element height by default since that's
+      // what is going to be used for unbounded text
+      let height = updatedTextElement.height;
+
       let maxWidth = updatedTextElement.width;
       let maxHeight = updatedTextElement.height;
-      let textElementWidth = updatedTextElement.width;
-      // Set to element height by default since that's
-      // what is going to be used for unbounded text
-      let textElementHeight = updatedTextElement.height;
 
       if (container && updatedTextElement.containerId) {
         if (isArrowElement(container)) {
@@ -179,9 +186,9 @@ export const textWysiwyg = ({
         );
 
         // autogrow container height if text exceeds
-        if (!isArrowElement(container) && textElementHeight > maxHeight) {
+        if (!isArrowElement(container) && height > maxHeight) {
           const targetContainerHeight = computeContainerDimensionForBoundText(
-            textElementHeight,
+            height,
             container.type,
           );
 
@@ -192,10 +199,10 @@ export const textWysiwyg = ({
           // is reached when text is removed
           !isArrowElement(container) &&
           container.height > originalContainerData.height &&
-          textElementHeight < maxHeight
+          height < maxHeight
         ) {
           const targetContainerHeight = computeContainerDimensionForBoundText(
-            textElementHeight,
+            height,
             container.type,
           );
           mutateElement(container, { height: targetContainerHeight });
@@ -228,13 +235,20 @@ export const textWysiwyg = ({
 
       if (!container) {
         maxWidth = (appState.width - 8 - viewportX) / appState.zoom.value;
-        textElementWidth = Math.min(textElementWidth, maxWidth);
-      } else {
-        textElementWidth += 0.5;
+        width = Math.min(width, maxWidth);
       }
 
       // add 5% buffer otherwise it causes wysiwyg to jump
-      textElementHeight *= 1.05;
+      height *= 1.05;
+
+      // diff between the actual width and advance width
+      const widthDiff = updatedTextElement.width - width;
+
+      // adding left and right padding so that browser does not cut the glyphs
+      // in case the diff is negative, don't do anything
+      // also adding 1px padding to compensate Math.ceil for width calc
+      // NOTE: we need full diff on both sides (left & right), as half value could result in cuts (depending on the used family)
+      const padding = widthDiff > 0 ? widthDiff + 1 : 0;
 
       // Make sure text editor height doesn't go beyond viewport
       const editorMaxHeight =
@@ -243,18 +257,19 @@ export const textWysiwyg = ({
         font: getFontString(updatedTextElement),
         // must be defined *after* font ¯\_(ツ)_/¯
         lineHeight: updatedTextElement.lineHeight,
-        width: `${textElementWidth}px`,
-        height: `${textElementHeight}px`,
-        left: `${viewportX}px`,
+        width: `${width}px`,
+        height: `${height}px`,
+        left: `${viewportX - padding}px`,
         top: `${viewportY}px`,
         transform: getTransform(
-          textElementWidth,
-          textElementHeight,
+          width,
+          height,
           getTextElementAngle(updatedTextElement, container),
           appState,
           maxWidth,
           editorMaxHeight,
         ),
+        padding: `0 ${padding}px`,
         textAlign,
         verticalAlign,
         color: updatedTextElement.strokeColor,
@@ -295,7 +310,6 @@ export const textWysiwyg = ({
     minHeight: "1em",
     backfaceVisibility: "hidden",
     margin: 0,
-    padding: 0,
     border: 0,
     outline: 0,
     resize: "none",
@@ -341,7 +355,7 @@ export const textWysiwyg = ({
           font,
           getBoundTextMaxWidth(container, boundTextElement),
         );
-        const width = getTextWidth(wrappedText, font);
+        const width = getTextWidth(wrappedText, font, true);
         editable.style.width = `${width}px`;
       }
     };
