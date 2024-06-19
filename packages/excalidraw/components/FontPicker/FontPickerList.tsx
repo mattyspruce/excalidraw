@@ -10,6 +10,7 @@ import { useExcalidrawContainer } from "../App";
 import { PropertiesPopover } from "../PropertiesPopover";
 import { QuickSearch } from "../QuickSearch";
 import { ScrollableList } from "../ScrollableList";
+import DropdownMenuSeparator from "../dropdownMenu/DropdownMenuSeparator";
 import DropdownMenuItem, {
   DropDownMenuItemBadgeType,
   DropDownMenuItemBadge,
@@ -20,6 +21,8 @@ import { t } from "../../i18n";
 import { fontPickerKeyHandler } from "./keyboardNavHandlers";
 import { Fonts } from "../../fonts";
 import type { ValueOf } from "../../utility-types";
+import { isDefaultFont } from "./FontPicker";
+import { FONT_FAMILY } from "../../constants";
 
 export interface FontDescriptor {
   value: number;
@@ -80,26 +83,46 @@ export const FontPickerList = React.memo(
       [],
     );
 
+    const defaultFonts = useMemo(() => {
+      const defaultFontsMap = allFonts
+        .filter((font) => isDefaultFont(font.value))
+        .reduce((acc, curr) => {
+          acc.set(curr.value, curr);
+          return acc;
+        }, new Map<number, FontDescriptor>());
+
+      return [
+        defaultFontsMap.get(FONT_FAMILY.Excalifont),
+        defaultFontsMap.get(FONT_FAMILY["Liberation Sans"]),
+        defaultFontsMap.get(FONT_FAMILY.Cascadia),
+      ] as Array<FontDescriptor>;
+    }, [allFonts]);
+
+    const otherFonts = useMemo(
+      () => allFonts.filter((font) => !isDefaultFont(font.value)),
+      [allFonts],
+    );
+
     const filteredFonts = useMemo(
       () =>
         arrayToList(
-          allFonts.filter((font) =>
+          [...defaultFonts, ...otherFonts].filter((font) =>
             font.text?.toLowerCase().includes(searchTerm),
           ),
         ),
-      [allFonts, searchTerm],
+      [defaultFonts, otherFonts, searchTerm],
     );
 
     const hoveredFont = useMemo(() => {
-      let node;
+      let font;
 
       if (hoveredFontFamily) {
-        node = filteredFonts.find((font) => font.value === hoveredFontFamily);
+        font = filteredFonts.find((font) => font.value === hoveredFontFamily);
       } else if (selectedFontFamily) {
-        node = filteredFonts.find((font) => font.value === selectedFontFamily);
+        font = filteredFonts.find((font) => font.value === selectedFontFamily);
       }
 
-      if (!node && searchTerm) {
+      if (!font && searchTerm) {
         if (filteredFonts[0]?.value) {
           // hover first element on search
           onHover(filteredFonts[0].value);
@@ -109,7 +132,7 @@ export const FontPickerList = React.memo(
         }
       }
 
-      return node;
+      return font;
     }, [
       hoveredFontFamily,
       selectedFontFamily,
@@ -148,6 +171,44 @@ export const FontPickerList = React.memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const defaultFilteredFonts = useMemo(
+      () => filteredFonts.filter((font) => isDefaultFont(font.value)),
+      [filteredFonts],
+    );
+    const otherFilteredFonts = useMemo(
+      () => filteredFonts.filter((font) => !isDefaultFont(font.value)),
+      [filteredFonts],
+    );
+
+    const renderFont = (font: FontDescriptor) => (
+      <DropdownMenuItem
+        key={font.value}
+        value={font.value}
+        textStyle={{
+          fontFamily: getFontFamilyString({ fontFamily: font.value }),
+        }}
+        hovered={font.value === hoveredFont?.value}
+        selected={font.value === selectedFontFamily}
+        // allow to tab between search and selected font
+        tabIndex={font.value === selectedFontFamily ? 0 : -1}
+        onClick={(e) => {
+          onSelect(Number(e.currentTarget.value));
+        }}
+        onMouseMove={() => {
+          if (hoveredFont?.value !== font.value) {
+            onHover(font.value);
+          }
+        }}
+      >
+        {font.text}
+        {font.badge && (
+          <DropDownMenuItemBadge type={font.badge.type}>
+            {font.badge.placeholder}
+          </DropDownMenuItemBadge>
+        )}
+      </DropdownMenuItem>
+    );
+
     return (
       <PropertiesPopover
         className="properties-content"
@@ -166,34 +227,12 @@ export const FontPickerList = React.memo(
           className="dropdown-menu max-items-8 manual-hover"
           placeholder={t("fontList.empty")}
         >
-          {filteredFonts.map((font) => (
-            <DropdownMenuItem
-              key={font.value}
-              value={font.value}
-              textStyle={{
-                fontFamily: getFontFamilyString({ fontFamily: font.value }),
-              }}
-              hovered={font.value === hoveredFont?.value}
-              selected={font.value === selectedFontFamily}
-              // allow to tab between search and selected font
-              tabIndex={font.value === selectedFontFamily ? 0 : -1}
-              onClick={(e) => {
-                onSelect(Number(e.currentTarget.value));
-              }}
-              onMouseMove={() => {
-                if (hoveredFont?.value !== font.value) {
-                  onHover(font.value);
-                }
-              }}
-            >
-              {font.text}
-              {font.badge && (
-                <DropDownMenuItemBadge type={font.badge.type}>
-                  {font.badge.placeholder}
-                </DropDownMenuItemBadge>
-              )}
-            </DropdownMenuItem>
-          ))}
+          {!!defaultFilteredFonts.length &&
+            defaultFilteredFonts.map(renderFont)}
+          {!!defaultFilteredFonts.length && !!otherFilteredFonts.length && (
+            <DropdownMenuSeparator />
+          )}
+          {!!otherFilteredFonts.length && otherFilteredFonts.map(renderFont)}
         </ScrollableList>
       </PropertiesPopover>
     );

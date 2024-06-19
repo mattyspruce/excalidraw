@@ -37,8 +37,14 @@ export const DEFAULT_FONTS = [
   },
 ];
 
-export const isCustomFont = (fontFamily: number | null) => {
-  return !DEFAULT_FONTS.find((x) => x.value === fontFamily);
+const defaultFontFamilies = new Set(DEFAULT_FONTS.map((x) => x.value));
+
+export const isDefaultFont = (fontFamily: number | null) => {
+  if (!fontFamily) {
+    return false;
+  }
+
+  return defaultFontFamilies.has(fontFamily);
 };
 
 interface FontPickerProps {

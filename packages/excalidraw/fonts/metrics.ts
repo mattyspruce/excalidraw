@@ -22,6 +22,7 @@ export const DEFAULT_FONT_METRICS: Record<number, FontMetrics> = {
     ascender: 886,
     descender: -374,
     lineHeight: 1.25,
+    hidden: true,
   },
   [FONT_FAMILY.Excalifont]: {
     unitsPerEm: 1000,

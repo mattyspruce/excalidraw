@@ -4,7 +4,7 @@ import { ButtonIcon } from "../ButtonIcon";
 import { FontFamilyNormalIcon } from "../icons";
 import type { FontFamilyValues } from "../../element/types";
 import { t } from "../../i18n";
-import { isCustomFont } from "./FontPicker";
+import { isDefaultFont } from "./FontPicker";
 
 interface FontPickerTriggerProps {
   selectedFontFamily: FontFamilyValues | null;
@@ -14,7 +14,7 @@ export const FontPickerTrigger = ({
   selectedFontFamily,
 }: FontPickerTriggerProps) => {
   const isTriggerActive = useMemo(
-    () => Boolean(selectedFontFamily && isCustomFont(selectedFontFamily)),
+    () => Boolean(selectedFontFamily && !isDefaultFont(selectedFontFamily)),
     [selectedFontFamily],
   );
 
