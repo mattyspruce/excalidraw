@@ -78,7 +78,7 @@ export const PropertiesPopover = React.forwardRef<
             onClose();
           }}
         >
-          <Island padding={2} style={style}>
+          <Island padding={3} style={style}>
             {children}
           </Island>
           <Popover.Arrow

@@ -6,11 +6,11 @@ import React, {
   useCallback,
   type KeyboardEventHandler,
 } from "react";
-import { useExcalidrawContainer } from "../App";
+import { useApp, useExcalidrawContainer } from "../App";
 import { PropertiesPopover } from "../PropertiesPopover";
 import { QuickSearch } from "../QuickSearch";
 import { ScrollableList } from "../ScrollableList";
-import DropdownMenuSeparator from "../dropdownMenu/DropdownMenuSeparator";
+import DropdownMenuGroup from "../dropdownMenu/DropdownMenuGroup";
 import DropdownMenuItem, {
   DropDownMenuItemBadgeType,
   DropDownMenuItemBadge,
@@ -21,8 +21,6 @@ import { t } from "../../i18n";
 import { fontPickerKeyHandler } from "./keyboardNavHandlers";
 import { Fonts } from "../../fonts";
 import type { ValueOf } from "../../utility-types";
-import { isDefaultFont } from "./FontPicker";
-import { FONT_FAMILY } from "../../constants";
 
 export interface FontDescriptor {
   value: number;
@@ -54,6 +52,7 @@ export const FontPickerList = React.memo(
     onClose,
   }: FontPickerListProps) => {
     const { container } = useExcalidrawContainer();
+    const { fonts } = useApp();
     const [searchTerm, setSearchTerm] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
     const allFonts = useMemo(
@@ -83,34 +82,31 @@ export const FontPickerList = React.memo(
       [],
     );
 
-    const defaultFonts = useMemo(() => {
-      const defaultFontsMap = allFonts
-        .filter((font) => isDefaultFont(font.value))
-        .reduce((acc, curr) => {
-          acc.set(curr.value, curr);
-          return acc;
-        }, new Map<number, FontDescriptor>());
+    const sceneFamilies = useMemo(
+      () => new Set(fonts.sceneFamilies),
+      // cache per selected font family, so hover re-render won't mess it up
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [selectedFontFamily],
+    );
 
-      return [
-        defaultFontsMap.get(FONT_FAMILY.Excalifont),
-        defaultFontsMap.get(FONT_FAMILY["Liberation Sans"]),
-        defaultFontsMap.get(FONT_FAMILY.Cascadia),
-      ] as Array<FontDescriptor>;
-    }, [allFonts]);
+    const sceneFonts = useMemo(
+      () => allFonts.filter((font) => sceneFamilies.has(font.value)),
+      [allFonts, sceneFamilies],
+    );
 
-    const otherFonts = useMemo(
-      () => allFonts.filter((font) => !isDefaultFont(font.value)),
-      [allFonts],
+    const availableFonts = useMemo(
+      () => allFonts.filter((font) => !sceneFamilies.has(font.value)),
+      [allFonts, sceneFamilies],
     );
 
     const filteredFonts = useMemo(
       () =>
         arrayToList(
-          [...defaultFonts, ...otherFonts].filter((font) =>
+          [...sceneFonts, ...availableFonts].filter((font) =>
             font.text?.toLowerCase().includes(searchTerm),
           ),
         ),
-      [defaultFonts, otherFonts, searchTerm],
+      [sceneFonts, availableFonts, searchTerm],
     );
 
     const hoveredFont = useMemo(() => {
@@ -171,19 +167,21 @@ export const FontPickerList = React.memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const defaultFilteredFonts = useMemo(
-      () => filteredFonts.filter((font) => isDefaultFont(font.value)),
-      [filteredFonts],
-    );
-    const otherFilteredFonts = useMemo(
-      () => filteredFonts.filter((font) => !isDefaultFont(font.value)),
-      [filteredFonts],
+    const sceneFilteredFonts = useMemo(
+      () => filteredFonts.filter((font) => sceneFamilies.has(font.value)),
+      [filteredFonts, sceneFamilies],
     );
 
-    const renderFont = (font: FontDescriptor) => (
+    const availableFilteredFonts = useMemo(
+      () => filteredFonts.filter((font) => !sceneFamilies.has(font.value)),
+      [filteredFonts, sceneFamilies],
+    );
+
+    const renderFont = (font: FontDescriptor, index: number) => (
       <DropdownMenuItem
         key={font.value}
         value={font.value}
+        order={index}
         textStyle={{
           fontFamily: getFontFamilyString({ fontFamily: font.value }),
         }}
@@ -224,15 +222,24 @@ export const FontPickerList = React.memo(
           onChange={debounce(setSearchTerm, 20)}
         />
         <ScrollableList
-          className="dropdown-menu max-items-8 manual-hover"
+          className="dropdown-menu fonts manual-hover"
           placeholder={t("fontList.empty")}
         >
-          {!!defaultFilteredFonts.length &&
-            defaultFilteredFonts.map(renderFont)}
-          {!!defaultFilteredFonts.length && !!otherFilteredFonts.length && (
-            <DropdownMenuSeparator />
+          {!!sceneFilteredFonts.length && (
+            <DropdownMenuGroup title={t("fontList.sceneFonts")} key="group_1">
+              {sceneFilteredFonts.map(renderFont)}
+            </DropdownMenuGroup>
           )}
-          {!!otherFilteredFonts.length && otherFilteredFonts.map(renderFont)}
+          {!!availableFilteredFonts.length && (
+            <DropdownMenuGroup
+              title={t("fontList.availableFonts")}
+              key="group_2"
+            >
+              {availableFilteredFonts.map((font, index) =>
+                renderFont(font, index + sceneFilteredFonts.length),
+              )}
+            </DropdownMenuGroup>
+          )}
         </ScrollableList>
       </PropertiesPopover>
     );

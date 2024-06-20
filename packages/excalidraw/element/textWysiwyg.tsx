@@ -33,7 +33,6 @@ import {
   computeContainerDimensionForBoundText,
   computeBoundTextPosition,
   getBoundTextElement,
-  measureText,
 } from "./textElement";
 import {
   actionDecreaseFontSize,

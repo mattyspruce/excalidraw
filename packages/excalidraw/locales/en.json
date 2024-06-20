@@ -565,6 +565,8 @@
     "badge": {
       "new": "new"
     },
+    "sceneFonts": "In this scene",
+    "availableFonts": "Available fonts",
     "empty": "No fonts found"
   },
   "userList": {

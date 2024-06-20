@@ -11,6 +11,7 @@ import type { ValueOf } from "../../utility-types";
 const DropdownMenuItem = ({
   icon,
   value,
+  order,
   children,
   shortcut,
   className,
@@ -23,6 +24,7 @@ const DropdownMenuItem = ({
 }: {
   icon?: JSX.Element;
   value?: string | number | undefined;
+  order?: number;
   onSelect?: (event: Event) => void;
   children: React.ReactNode;
   shortcut?: string;
@@ -36,9 +38,14 @@ const DropdownMenuItem = ({
 
   useEffect(() => {
     if (hovered) {
-      ref.current?.scrollIntoView({ block: "nearest" });
+      if (order === 0) {
+        // scroll into the first item differently, so it's visible what is above (i.e. group title)
+        ref.current?.scrollIntoView({ block: "end" });
+      } else {
+        ref.current?.scrollIntoView({ block: "nearest" });
+      }
     }
-  }, [hovered]);
+  }, [hovered, order]);
 
   return (
     <button
