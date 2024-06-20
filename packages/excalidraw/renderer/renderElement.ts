@@ -506,7 +506,9 @@ const drawElementFromCanvas = (
     const offsetY = (tempCanvas.height - elementWithCanvas.canvas!.height) / 2;
 
     tempCanvasContext.translate(tempCanvas.width / 2, tempCanvas.height / 2);
-    tempCanvasContext.rotate(element.angle);
+    if (!element.elbowed) {
+      tempCanvasContext.rotate(element.angle);
+    }
 
     tempCanvasContext.drawImage(
       elementWithCanvas.canvas!,
@@ -521,7 +523,9 @@ const drawElementFromCanvas = (
       allElementsMap,
     );
 
-    tempCanvasContext.rotate(-element.angle);
+    if (!element.elbowed) {
+      tempCanvasContext.rotate(-element.angle);
+    }
 
     // Shift the canvas to the center of the bound text element
     const shiftX =
@@ -565,7 +569,9 @@ const drawElementFromCanvas = (
     // originates from the element center
     context.translate(cx, cy);
 
-    context.rotate(element.angle);
+    if (!isArrowElement(element) || !element.elbowed) {
+      context.rotate(element.angle);
+    }
 
     if (
       "scale" in elementWithCanvas.element &&
@@ -793,7 +799,10 @@ export const renderElement = (
           shiftX = element.width / 2 - (element.x - x1);
           shiftY = element.height / 2 - (element.y - y1);
 
-          tempCanvasContext.rotate(element.angle);
+          if (!isArrowElement(element) || !element.elbowed) {
+            tempCanvasContext.rotate(element.angle);
+          }
+
           const tempRc = rough.canvas(tempCanvas);
 
           tempCanvasContext.translate(-shiftX, -shiftY);
@@ -808,7 +817,9 @@ export const renderElement = (
 
           tempCanvasContext.translate(shiftX, shiftY);
 
-          tempCanvasContext.rotate(-element.angle);
+          if (!isArrowElement(element) || !element.elbowed) {
+            tempCanvasContext.rotate(-element.angle);
+          }
 
           // Shift the canvas to center of bound text
           const [, , , , boundTextCx, boundTextCy] = getElementAbsoluteCoords(
