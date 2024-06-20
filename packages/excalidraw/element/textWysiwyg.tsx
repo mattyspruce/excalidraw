@@ -33,6 +33,7 @@ import {
   computeContainerDimensionForBoundText,
   computeBoundTextPosition,
   getBoundTextElement,
+  measureText,
 } from "./textElement";
 import {
   actionDecreaseFontSize,
@@ -138,7 +139,12 @@ export const textWysiwyg = ({
         fontFamily: updatedTextElement.fontFamily,
       });
       // wysiwyg has to use advance width, so that our wrapping algo is in sync with the browser wrapping
-      let width = getTextWidth(updatedTextElement.text, font, true);
+      // fallback to element width in case there advance width is zero, i.e. on text editing start
+      // NOTE: `measureText` substitutes empty lines with text, hence width calculation won't be zero on text editing start
+      let width =
+        getTextWidth(updatedTextElement.text, font, true) ||
+        updatedTextElement.width;
+
       // set to element height by default since that's
       // what is going to be used for unbounded text
       let height = updatedTextElement.height;
@@ -241,14 +247,11 @@ export const textWysiwyg = ({
       // add 5% buffer otherwise it causes wysiwyg to jump
       height *= 1.05;
 
-      // diff between the actual width and advance width
-      const widthDiff = updatedTextElement.width - width;
-
       // adding left and right padding so that browser does not cut the glyphs
-      // in case the diff is negative, don't do anything
-      // also adding 1px padding to compensate Math.ceil for width calc
+      // adding +1px padding to compensate `Math.ceil` in width calculation
+      // getting absolute value so there is always at least some padding
       // NOTE: we need full diff on both sides (left & right), as half value could result in cuts (depending on the used family)
-      const padding = widthDiff > 0 ? widthDiff + 1 : 0;
+      const padding = Math.abs(updatedTextElement.width - width) + 1;
 
       // Make sure text editor height doesn't go beyond viewport
       const editorMaxHeight =

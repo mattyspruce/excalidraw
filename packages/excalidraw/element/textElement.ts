@@ -354,27 +354,32 @@ const getLineWidth = (
   canvas2dContext.font = font;
   const metrics = canvas2dContext.measureText(text);
 
+  const advanceWidth = Math.ceil(metrics.width);
+
   // retrieve the actual bounding box width if these metrics are available (as of now > 95% coverage)
   if (
     !forceAdvanceWidth &&
     "actualBoundingBoxLeft" in TextMetrics.prototype &&
     "actualBoundingBoxRight" in TextMetrics.prototype
   ) {
-    return Math.ceil(
+    const actualWidth = Math.ceil(
       // could be negative, therefore getting the absolute value
       Math.abs(metrics.actualBoundingBoxLeft) +
         Math.abs(metrics.actualBoundingBoxRight),
     );
+
+    // fallback to advance width if the actual width is zero, i.e. on text editing start
+    return actualWidth || advanceWidth;
   }
 
   // since in test env the canvas measureText algo
   // doesn't measure text and instead just returns number of
   // characters hence we assume that each letteris 10px
   if (isTestEnv()) {
-    return metrics.width * 10;
+    return advanceWidth * 10;
   }
 
-  return Math.ceil(metrics.width);
+  return advanceWidth;
 };
 
 export const getTextWidth = (
