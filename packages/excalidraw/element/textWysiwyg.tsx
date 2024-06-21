@@ -506,8 +506,10 @@ export const textWysiwyg = ({
   };
 
   const stopEvent = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
+    if (event.target instanceof HTMLCanvasElement) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
   };
 
   // using a state variable instead of passing it to the handleSubmit callback
@@ -607,37 +609,6 @@ export const textWysiwyg = ({
     setTimeout(() => {
       editable.onblur = handleSubmit;
 
-      if (isPropertiesTrigger) {
-        const callback = (
-          mutationList: MutationRecord[],
-          observer: MutationObserver,
-        ) => {
-          const radixIsRemoved = mutationList.find(
-            (mutation) =>
-              mutation.removedNodes.length > 0 &&
-              (mutation.removedNodes[0] as HTMLElement).dataset
-                ?.radixPopperContentWrapper !== undefined,
-          );
-
-          if (radixIsRemoved) {
-            // should work without this in theory
-            // and i think it does actually but radix probably somewhere,
-            // somehow sets the focus elsewhere
-            setTimeout(() => {
-              editable.focus();
-            });
-
-            observer.disconnect();
-          }
-        };
-
-        const observer = new MutationObserver(callback);
-
-        observer.observe(document.querySelector(".excalidraw-container")!, {
-          childList: true,
-        });
-      }
-
       // case: clicking on the same property → no change → no update → no focus
       if (!isPropertiesTrigger) {
         editable.focus();
@@ -667,7 +638,7 @@ export const textWysiwyg = ({
       window.addEventListener("blur", handleSubmit);
     } else if (
       event.target instanceof HTMLElement &&
-      !event.target.contains(editable) &&
+      event.target instanceof HTMLCanvasElement &&
       // Vitest simply ignores stopPropagation, capture-mode, or rAF
       // so without introducing crazier hacks, nothing we can do
       !isTestEnv()
