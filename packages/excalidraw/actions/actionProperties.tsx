@@ -965,10 +965,19 @@ export const actionChangeFontFamily = register({
               const { editingElement } = appState;
 
               if (editingElement?.type === "text") {
+                // retrieve the latest version from the scene, as `editingElement` isn't mutated
+                const latestEditingElement = app.scene.getElement(
+                  editingElement.id,
+                );
+
                 // inside the wysiwyg editor
                 cachedElementsRef.current.set(
                   editingElement.id,
-                  newElementWith(editingElement, {}, true),
+                  newElementWith(
+                    latestEditingElement || editingElement,
+                    {},
+                    true,
+                  ),
                 );
               } else {
                 const selectedElements = getSelectedElements(

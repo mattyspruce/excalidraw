@@ -354,7 +354,7 @@ const getLineWidth = (
   canvas2dContext.font = font;
   const metrics = canvas2dContext.measureText(text);
 
-  const advanceWidth = Math.ceil(metrics.width);
+  const advanceWidth = metrics.width;
 
   // retrieve the actual bounding box width if these metrics are available (as of now > 95% coverage)
   if (
@@ -362,14 +362,15 @@ const getLineWidth = (
     "actualBoundingBoxLeft" in TextMetrics.prototype &&
     "actualBoundingBoxRight" in TextMetrics.prototype
   ) {
-    const actualWidth = Math.ceil(
-      // could be negative, therefore getting the absolute value
+    // could be negative, therefore getting the absolute value
+    const actualWidth =
       Math.abs(metrics.actualBoundingBoxLeft) +
-        Math.abs(metrics.actualBoundingBoxRight),
-    );
+      Math.abs(metrics.actualBoundingBoxRight);
 
     // fallback to advance width if the actual width is zero, i.e. on text editing start
-    return actualWidth || advanceWidth;
+    // or when actual width does not respect whitespace chars, i.e. spaces
+    // otherwise actual width should always be bigger
+    return Math.max(actualWidth, advanceWidth);
   }
 
   // since in test env the canvas measureText algo
@@ -423,7 +424,11 @@ export const parseTokens = (text: string) => {
   return words.join(" ").split(" ");
 };
 
-export const wrapText = (text: string, font: FontString, maxWidth: number) => {
+export const wrapText = (
+  text: string,
+  font: FontString,
+  maxWidth: number,
+): string => {
   // if maxWidth is not finite or NaN which can happen in case of bugs in
   // computation, we need to make sure we don't continue as we'll end up
   // in an infinite loop
@@ -433,7 +438,7 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
 
   const lines: Array<string> = [];
   const originalLines = text.split("\n");
-  const spaceWidth = getLineWidth(" ", font, true);
+  const spaceAdvanceWidth = getLineWidth(" ", font, true);
 
   let currentLine = "";
   let currentLineWidthTillNow = 0;
@@ -448,13 +453,14 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
     currentLine = "";
     currentLineWidthTillNow = 0;
   };
-  originalLines.forEach((originalLine) => {
+
+  for (const originalLine of originalLines) {
     const currentLineWidth = getLineWidth(originalLine, font, true);
 
     // Push the line if its <= maxWidth
     if (currentLineWidth <= maxWidth) {
       lines.push(originalLine);
-      return; // continue
+      continue;
     }
 
     const words = parseTokens(originalLine);
@@ -475,7 +481,6 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
       else if (currentWordWidth > maxWidth) {
         // push current line since the current word exceeds the max width
         // so will be appended in next line
-
         push(currentLine);
 
         resetParams();
@@ -484,20 +489,26 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
           const currentChar = String.fromCodePoint(
             words[index].codePointAt(0)!,
           );
-          const width = charWidth.calculate(currentChar, font);
-          currentLineWidthTillNow += width;
+
+          const line = currentLine + currentChar;
+          // use advance width instead of the actual width as it's closest to the browser wapping algo
+          // use width of the whole line instead of calculating individual chars to accomodate for kerning
+          const lineAdvanceWidth = getLineWidth(line, font, true);
+          const charAdvanceWidth = charWidth.calculate(currentChar, font);
+
+          currentLineWidthTillNow = lineAdvanceWidth;
           words[index] = words[index].slice(currentChar.length);
 
           if (currentLineWidthTillNow >= maxWidth) {
             push(currentLine);
             currentLine = currentChar;
-            currentLineWidthTillNow = width;
+            currentLineWidthTillNow = charAdvanceWidth;
           } else {
-            currentLine += currentChar;
+            currentLine = line;
           }
         }
         // push current line if appending space exceeds max width
-        if (currentLineWidthTillNow + spaceWidth >= maxWidth) {
+        if (currentLineWidthTillNow + spaceAdvanceWidth >= maxWidth) {
           push(currentLine);
           resetParams();
           // space needs to be appended before next word
@@ -506,7 +517,7 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
           // with css word-wrap
         } else if (!currentLine.endsWith("-")) {
           currentLine += " ";
-          currentLineWidthTillNow += spaceWidth;
+          currentLineWidthTillNow += spaceAdvanceWidth;
         }
         index++;
       } else {
@@ -537,7 +548,7 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
           }
 
           // Push the word if appending space exceeds max width
-          if (currentLineWidthTillNow + spaceWidth >= maxWidth) {
+          if (currentLineWidthTillNow + spaceAdvanceWidth >= maxWidth) {
             if (shouldAppendSpace) {
               lines.push(currentLine.slice(0, -1));
             } else {
@@ -549,12 +560,14 @@ export const wrapText = (text: string, font: FontString, maxWidth: number) => {
         }
       }
     }
+
     if (currentLine.slice(-1) === " ") {
       // only remove last trailing space which we have added when joining words
       currentLine = currentLine.slice(0, -1);
       push(currentLine);
     }
-  });
+  }
+
   return lines.join("\n");
 };
 

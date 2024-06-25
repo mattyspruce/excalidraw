@@ -133,16 +133,7 @@ export const textWysiwyg = ({
         app.scene.getNonDeletedElementsMap(),
       );
 
-      const font = getFontString({
-        fontSize: updatedTextElement.fontSize,
-        fontFamily: updatedTextElement.fontFamily,
-      });
-      // wysiwyg has to use advance width, so that our wrapping algo is in sync with the browser wrapping
-      // fallback to element width in case there advance width is zero, i.e. on text editing start
-      // NOTE: `measureText` substitutes empty lines with text, hence width calculation won't be zero on text editing start
-      let width =
-        getTextWidth(updatedTextElement.text, font, true) ||
-        updatedTextElement.width;
+      let width = updatedTextElement.width;
 
       // set to element height by default since that's
       // what is going to be used for unbounded text
@@ -241,22 +232,23 @@ export const textWysiwyg = ({
       if (!container) {
         maxWidth = (appState.width - 8 - viewportX) / appState.zoom.value;
         width = Math.min(width, maxWidth);
+      } else {
+        width += 0.5;
       }
 
       // add 5% buffer otherwise it causes wysiwyg to jump
       height *= 1.05;
 
-      // adding left and right padding so that browser does not cut the glyphs
-      // adding +1px padding to compensate `Math.ceil` in width calculation
-      // getting absolute value so there is always at least some padding
-      // NOTE: we need full diff on both sides (left & right), as half value could result in cuts (depending on the used family)
-      const padding = Math.abs(updatedTextElement.width - width) + 1;
+      const font = getFontString(updatedTextElement);
+
+      // adding left and right padding buffer, so that browser does not cut the glyphs
+      const padding = Math.ceil(updatedTextElement.fontSize / 2);
 
       // Make sure text editor height doesn't go beyond viewport
       const editorMaxHeight =
         (appState.height - viewportY) / appState.zoom.value;
       Object.assign(editable.style, {
-        font: getFontString(updatedTextElement),
+        font,
         // must be defined *after* font ¯\_(ツ)_/¯
         lineHeight: updatedTextElement.lineHeight,
         width: `${width}px`,

@@ -3406,13 +3406,13 @@ class App extends React.Component<AppProps, AppState> {
           });
 
           let metrics = measureText(originalText, fontString, lineHeight);
-          const isTextWrapped = metrics.width > maxTextWidth;
+          const isTextUnwrapped = metrics.width > maxTextWidth;
 
-          const text = isTextWrapped
+          const text = isTextUnwrapped
             ? wrapText(originalText, fontString, maxTextWidth)
             : originalText;
 
-          metrics = isTextWrapped
+          metrics = isTextUnwrapped
             ? measureText(text, fontString, lineHeight)
             : metrics;
 
@@ -3426,7 +3426,7 @@ class App extends React.Component<AppProps, AppState> {
             text,
             originalText,
             lineHeight,
-            autoResize: !isTextWrapped,
+            autoResize: !isTextUnwrapped,
             frameId: topLayerFrame ? topLayerFrame.id : null,
           });
           acc.push(element);
