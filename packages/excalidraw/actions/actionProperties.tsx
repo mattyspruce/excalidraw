@@ -864,6 +864,7 @@ export const actionChangeFontFamily = register({
     const prevSelectedFontFamilyRef = useRef<number | null>(null);
     // relying on state batching as multiple `FontPicker` handlers could be called in rapid succession and we want to combine them
     const [batchedData, setBatchedData] = useState<ChangeFontFamilyData>({});
+    const isUnmounted = useRef(true);
 
     const selectedFontFamily = useMemo(() => {
       const getFontFamily = (
@@ -925,6 +926,14 @@ export const actionChangeFontFamily = register({
       // call update only on internal state changes
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [batchedData]);
+
+    useEffect(() => {
+      isUnmounted.current = false;
+
+      return () => {
+        isUnmounted.current = true;
+      };
+    }, []);
 
     return (
       <fieldset>
@@ -1001,12 +1010,19 @@ export const actionChangeFontFamily = register({
               });
             } else {
               // close, use the cache and clear it afterwards
-              setBatchedData({
+              const data = {
                 openPopup: null,
                 currentHoveredFontFamily: null,
                 cachedElements: new Map(cachedElementsRef.current),
                 resetAll: true,
-              });
+              } as ChangeFontFamilyData;
+
+              if (isUnmounted.current) {
+                // in case the component was unmounted by the parent, trigger the update directly
+                updateData({ ...batchedData, ...data });
+              } else {
+                setBatchedData(data);
+              }
 
               cachedElementsRef.current.clear();
             }
