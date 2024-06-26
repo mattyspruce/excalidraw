@@ -89,8 +89,16 @@ const shouldResetImageFilter = (
   );
 };
 
-const getCanvasPadding = (element: ExcalidrawElement) =>
-  element.type === "freedraw" ? element.strokeWidth * 12 : 20;
+const getCanvasPadding = (element: ExcalidrawElement) => {
+  switch (element.type) {
+    case "freedraw":
+      return element.strokeWidth * 12;
+    case "text":
+      return element.fontSize / 2;
+    default:
+      return 20;
+  }
+};
 
 export const getRenderOpacity = (
   element: ExcalidrawElement,
@@ -200,7 +208,7 @@ const generateElementCanvas = (
   canvas.width = width;
   canvas.height = height;
 
-  let canvasOffsetX = 0;
+  let canvasOffsetX = -100;
   let canvasOffsetY = 0;
 
   if (isLinearElement(element) || isFreeDrawElement(element)) {
