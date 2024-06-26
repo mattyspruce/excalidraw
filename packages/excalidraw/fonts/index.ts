@@ -77,7 +77,7 @@ export class Fonts {
       // subset of the font properties (though it should be enough), so it
       // can technically bail on a false positive.
       fontFaces.every((fontFace) => {
-        const sig = `${fontFace.family}-${fontFace.style}-${fontFace.weight}`;
+        const sig = `${fontFace.family}-${fontFace.style}-${fontFace.weight}-${fontFace.unicodeRange}`;
         if (Fonts.loadedFontsCache.has(sig)) {
           return true;
         }
