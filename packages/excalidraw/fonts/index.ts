@@ -192,10 +192,15 @@ export class Fonts {
       uri: Excalifont,
     });
 
-    // keeping for backwards compatibility reasons, uses system font (Helvetica on MacOS, Arial on Win)
+    // keeping for backwards compatibility reasons, uses system font (Helvetica on MacOS, Arial on Win) in browser environment and LiberationSans outside
     register("Helvetica", DEFAULT_FONT_METRICS[FONT_FAMILY.Helvetica], {
-      uri: "",
+      uri:
+        typeof window !== "undefined" &&
+        window.navigator.userAgent !== "node.js" // jsdom
+          ? ""
+          : LiberationSans,
     });
+
     register(
       "Liberation Sans",
       DEFAULT_FONT_METRICS[FONT_FAMILY["Liberation Sans"]],
