@@ -387,12 +387,22 @@ export const exportToSvg = async (
           return Promise.all(
             fontFaces
               .filter((font) => font.fontFace.weight === "400")
-              .map(
-                async (font) => `@font-face {
-          font-family: ${font.fontFace.family};
-          src: url(${await font.getContent()});
-        }`,
-              ),
+              .map(async (font) => {
+                try {
+                  const content = await font.getContent();
+
+                  return `@font-face {
+            font-family: ${font.fontFace.family};
+            src: url(${content});
+          }`;
+                } catch (e) {
+                  console.error(
+                    `Skipped inlining font with URL "${font.url.toString()}"`,
+                    e,
+                  );
+                  return "";
+                }
+              }),
           );
         }),
       );
