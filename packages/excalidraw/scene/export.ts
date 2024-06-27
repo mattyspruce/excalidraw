@@ -385,12 +385,14 @@ export const exportToSvg = async (
           }
 
           return Promise.all(
-            fontFaces.map(
-              async (font) => `@font-face {
+            fontFaces
+              .filter((font) => font.fontFace.weight === "400")
+              .map(
+                async (font) => `@font-face {
           font-family: ${font.fontFace.family};
           src: url(${await font.getContent()});
         }`,
-            ),
+              ),
           );
         }),
       );
