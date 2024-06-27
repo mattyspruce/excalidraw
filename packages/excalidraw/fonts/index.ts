@@ -9,14 +9,14 @@ import { FONT_FAMILY } from "../constants";
 import { DEFAULT_FONT_METRICS, RANGES, type FontMetrics } from "./metrics";
 import { ExcalidrawFont, type Font } from "./ExcalidrawFont";
 
-import Virgil from "./assets/Virgil.woff2";
-import Excalifont from "./assets/Excalifont.woff2";
+import Virgil from "./assets/Virgil-Regular.woff2";
+import Excalifont from "./assets/Excalifont-Regular.woff2";
 import AssistantRegular from "./assets/Assistant-Regular.woff2";
 import AssistantMedium from "./assets/Assistant-Medium.woff2";
 import AssistantSemiBold from "./assets/Assistant-SemiBold.woff2";
 import AssistantBold from "./assets/Assistant-Bold.woff2";
 import Cascadia from "./assets/CascadiaMono-Regular.woff2";
-import ComicShanns from "./assets/ComicShanns2.woff2";
+import ComicShanns from "./assets/ComicShanns-Regular.woff2";
 import LiberationSans from "./assets/LiberationSans-Regular.woff2";
 
 import BangersLatin from "https://fonts.gstatic.com/s/bangers/v24/FeVQS0BTqb0h60ACH55Q2J5hm24.woff2";
