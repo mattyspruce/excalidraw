@@ -20,7 +20,7 @@ const RowStack = forwardRef(
   ) => {
     return (
       <div
-        className={clsx("Stack Stack_horizontal", className)}
+        className={clsx("Stack Stack_vertical", className)}
         style={{
           "--gap": gap,
           alignItems: align,
